@@ -55,17 +55,17 @@ const FoodAnalysis = ({ result, className }: FoodAnalysisProps) => {
             </div>
             
             <div className="flex flex-col items-center justify-center p-3 rounded-lg bg-primary/5 border border-border/50">
-              <div className="text-2xl font-bold">{nutritionInfo.protein}g</div>
+              <div className="text-2xl font-bold">{nutritionInfo.protein.toFixed(1)}g</div>
               <div className="text-xs text-muted-foreground mt-1">Protein</div>
             </div>
             
             <div className="flex flex-col items-center justify-center p-3 rounded-lg bg-primary/5 border border-border/50">
-              <div className="text-2xl font-bold">{nutritionInfo.carbs}g</div>
+              <div className="text-2xl font-bold">{nutritionInfo.carbs.toFixed(1)}g</div>
               <div className="text-xs text-muted-foreground mt-1">Carbs</div>
             </div>
             
             <div className="flex flex-col items-center justify-center p-3 rounded-lg bg-primary/5 border border-border/50">
-              <div className="text-2xl font-bold">{nutritionInfo.fat}g</div>
+              <div className="text-2xl font-bold">{nutritionInfo.fat.toFixed(1)}g</div>
               <div className="text-xs text-muted-foreground mt-1">Fat</div>
             </div>
           </div>
@@ -76,7 +76,7 @@ const FoodAnalysis = ({ result, className }: FoodAnalysisProps) => {
                 <div className="text-sm font-medium">Protein</div>
                 <div className="text-sm font-medium">{proteinPercentage}%</div>
               </div>
-              <Progress value={proteinPercentage} className="h-2" />
+              <Progress value={proteinPercentage} />
             </div>
             
             <div>
@@ -84,7 +84,7 @@ const FoodAnalysis = ({ result, className }: FoodAnalysisProps) => {
                 <div className="text-sm font-medium">Carbs</div>
                 <div className="text-sm font-medium">{carbsPercentage}%</div>
               </div>
-              <Progress value={carbsPercentage} className="h-2" />
+              <Progress value={carbsPercentage} />
             </div>
             
             <div>
@@ -92,7 +92,7 @@ const FoodAnalysis = ({ result, className }: FoodAnalysisProps) => {
                 <div className="text-sm font-medium">Fat</div>
                 <div className="text-sm font-medium">{fatPercentage}%</div>
               </div>
-              <Progress value={fatPercentage} className="h-2" />
+              <Progress value={fatPercentage} />
             </div>
           </div>
         </CardContent>

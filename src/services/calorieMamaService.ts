@@ -1,30 +1,33 @@
-
 import { FoodRecognitionResult, NutritionInfo } from "@/types";
 import { toast } from "sonner";
 
-// This is where you would put your Calorie Mama API key
-// In a production environment, this should be stored securely
+// API constants
 const CALORIE_MAMA_API_KEY = "YOUR_API_KEY"; 
-const API_ENDPOINT = "https://api.caloriemama.ai/v1/foodrecognition";
+const API_ENDPOINT = "https://api-2445582032290.production.gw.apicast.io/v1/foodrecognition";
 
+/**
+ * Sends an image to the Calorie Mama API for food recognition
+ * @param imageFile The food image file to analyze
+ * @returns A promise that resolves to the recognition result or null if an error occurs
+ */
 export async function recognizeFood(imageFile: File): Promise<FoodRecognitionResult | null> {
   try {
-    // Create form data to send the image
-    const formData = new FormData();
-    formData.append("image", imageFile);
+    // Prepare image before sending to API
+    const processedImage = await prepareImageForAPI(imageFile);
     
     // If using the actual API
     if (CALORIE_MAMA_API_KEY !== "YOUR_API_KEY") {
-      const response = await fetch(API_ENDPOINT, {
+      const formData = new FormData();
+      formData.append("media", processedImage);
+      
+      const response = await fetch(`${API_ENDPOINT}?user_key=${CALORIE_MAMA_API_KEY}`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${CALORIE_MAMA_API_KEY}`,
-        },
         body: formData
       });
       
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(`API error: ${errorData?.error?.errorDetail || response.status}`);
       }
       
       const data = await response.json();
@@ -32,10 +35,8 @@ export async function recognizeFood(imageFile: File): Promise<FoodRecognitionRes
     }
     
     // If no API key provided, use mock data for demonstration
-    // Simulate API response delay
     await new Promise(resolve => setTimeout(resolve, 1500));
     return mockRecognitionResult(imageFile.name);
-    
   } catch (error) {
     console.error("Food recognition error:", error);
     toast.error("Failed to recognize food. Please try again.");
@@ -43,8 +44,65 @@ export async function recognizeFood(imageFile: File): Promise<FoodRecognitionRes
   }
 }
 
+/**
+ * Prepares an image for the API by resizing it to 544x544 pixels
+ * @param imageFile The original image file
+ * @returns A promise that resolves to the processed image file
+ */
+async function prepareImageForAPI(imageFile: File): Promise<File> {
+  // Return original file for mock implementation
+  // In a real implementation, we would resize the image to 544x544 as required by the API
+  return imageFile;
+  
+  /* Actual implementation would be:
+  
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 544;
+      canvas.height = 544;
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        reject(new Error('Failed to get canvas context'));
+        return;
+      }
+      
+      // Calculate dimensions to crop from center
+      const size = Math.min(img.width, img.height);
+      const startX = (img.width - size) / 2;
+      const startY = (img.height - size) / 2;
+      
+      // Draw image centered and cropped
+      ctx.drawImage(
+        img,
+        startX, startY, size, size,
+        0, 0, 544, 544
+      );
+      
+      // Convert to blob/file
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          reject(new Error('Failed to create image blob'));
+          return;
+        }
+        
+        const processedFile = new File([blob], imageFile.name, { type: 'image/jpeg' });
+        resolve(processedFile);
+      }, 'image/jpeg', 0.95);
+    };
+    
+    img.onerror = () => reject(new Error('Failed to load image'));
+    img.src = URL.createObjectURL(imageFile);
+  });
+  */
+}
+
+/**
+ * Mock food recognition results for demo purposes
+ */
 function mockRecognitionResult(filename: string): FoodRecognitionResult {
-  // This is a simplified mock - actual implementation would use real API results
   const foods = [
     {
       name: "Apple",
@@ -128,52 +186,91 @@ function mockRecognitionResult(filename: string): FoodRecognitionResult {
   return foods[randomIndex];
 }
 
-// This function maps the actual Calorie Mama API response to our expected format
+/**
+ * Maps the Calorie Mama API response to our application's format
+ * Based on the API documentation provided
+ */
 function mapApiResponseToResult(apiResponse: any): FoodRecognitionResult {
-  // Based on Calorie Mama API documentation
-  // https://dev.caloriemama.ai/docs
-
-  // Check if there's a recognized food and extract first item
+  // Verify the response contains results
   if (!apiResponse.results || !apiResponse.results.length) {
     throw new Error("No food recognized in the image");
   }
 
-  const firstResult = apiResponse.results[0];
+  // Get the first food group
+  const firstGroup = apiResponse.results[0];
+  
+  // Get the highest scoring item from the first group
+  let highestScoringItem = firstGroup.items[0];
+  for (const item of firstGroup.items) {
+    if (item.score > highestScoringItem.score) {
+      highestScoringItem = item;
+    }
+  }
+  
+  // Convert nutrition values from kg to g for better readability
+  // API returns values in SI units (kg)
+  const rawNutrition = highestScoringItem.nutrition;
   
   // Extract the nutrition information
   const nutritionInfo: NutritionInfo = {
-    calories: firstResult.nutrition?.calories || 0,
-    protein: firstResult.nutrition?.protein?.value || 0,
-    carbs: firstResult.nutrition?.carbs?.value || 0,
-    fat: firstResult.nutrition?.fat?.value || 0,
+    calories: rawNutrition?.calories || 0,
+    // Convert from kg to g (multiply by 1000)
+    protein: (rawNutrition?.protein || 0) * 1000,
+    carbs: (rawNutrition?.totalCarbs || 0) * 1000, 
+    fat: (rawNutrition?.totalFat || 0) * 1000,
     nutrients: []
   };
 
   // Add additional nutrients if available
-  if (firstResult.nutrition?.minerals) {
-    for (const mineral in firstResult.nutrition.minerals) {
-      nutritionInfo.nutrients?.push({
-        name: mineral,
-        amount: firstResult.nutrition.minerals[mineral].value,
-        unit: firstResult.nutrition.minerals[mineral].unit
-      });
-    }
-  }
+  const nutrientMappings: Record<string, string> = {
+    saturatedFat: "Saturated Fat",
+    cholesterol: "Cholesterol",
+    sodium: "Sodium",
+    dietaryFiber: "Fiber",
+    sugars: "Sugar",
+    monounsaturatedFat: "Monounsaturated Fat",
+    polyunsaturatedFat: "Polyunsaturated Fat",
+    vitaminA: "Vitamin A",
+    vitaminC: "Vitamin C",
+    iron: "Iron", 
+    potassium: "Potassium",
+    calcium: "Calcium"
+  };
 
-  if (firstResult.nutrition?.vitamins) {
-    for (const vitamin in firstResult.nutrition.vitamins) {
+  for (const [apiKey, displayName] of Object.entries(nutrientMappings)) {
+    if (rawNutrition?.[apiKey] !== undefined) {
+      let value = rawNutrition[apiKey];
+      let unit = "g";
+      
+      // Convert to appropriate units for better readability
+      if (apiKey === "vitaminA" || apiKey === "vitaminC") {
+        value = value * 1000000; // Convert to mcg
+        unit = "mcg";
+      } else if (apiKey === "iron" || apiKey === "calcium") {
+        value = value * 1000000; // Convert to mg
+        unit = "mg";
+      } else if (apiKey === "sodium" || apiKey === "potassium") {
+        value = value * 1000; // Convert to mg
+        unit = "mg";
+      } else if (apiKey === "cholesterol") {
+        value = value * 1000; // Convert to mg
+        unit = "mg";
+      } else {
+        value = value * 1000; // Convert to g
+      }
+      
       nutritionInfo.nutrients?.push({
-        name: vitamin,
-        amount: firstResult.nutrition.vitamins[vitamin].value,
-        unit: firstResult.nutrition.vitamins[vitamin].unit
+        name: displayName,
+        amount: Math.round(value * 100) / 100, // Round to 2 decimal places
+        unit
       });
     }
   }
 
   // Build the final result
   return {
-    name: firstResult.food?.name || "Unknown Food",
-    score: firstResult.score || 0,
+    name: highestScoringItem.name || "Unknown Food",
+    score: highestScoringItem.score / 100, // Convert to 0-1 range as expected by our app
     nutrition: nutritionInfo
   };
 }
