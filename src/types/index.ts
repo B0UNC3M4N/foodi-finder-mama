@@ -3,6 +3,7 @@ export interface FoodRecognitionResult {
   name: string;
   score: number;
   nutrition?: NutritionInfo;
+  allergenInfo?: AllergenInfo;
 }
 
 export interface NutritionInfo {
@@ -22,4 +23,9 @@ export interface HistoryEntry {
   timestamp: number;
   imageUrl: string;
   result: FoodRecognitionResult;
+}
+
+export interface AllergenInfo {
+  allergens: string[];
+  cautions: string[];
 }

@@ -1,7 +1,7 @@
 
 import { FoodRecognitionResult } from "@/types";
 import { cn } from "@/lib/utils";
-import { CircleCheck, Award, Banana, Apple, Circle } from "lucide-react";
+import { CircleCheck, Award, Banana, Apple, Circle, AlertTriangle, AlertCircle } from "lucide-react";
 import { 
   Card, 
   CardContent,
@@ -11,6 +11,12 @@ import {
   CardFooter 
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from "@/components/ui/tooltip";
 
 interface FoodAnalysisProps {
   result: FoodRecognitionResult | null;
@@ -31,6 +37,11 @@ const FoodAnalysis = ({ result, className }: FoodAnalysisProps) => {
   const carbsPercentage = Math.round((nutritionInfo.carbs / totalGrams) * 100) || 0;
   const fatPercentage = Math.round((nutritionInfo.fat / totalGrams) * 100) || 0;
 
+  const hasAllergens = result.allergenInfo && (
+    result.allergenInfo.allergens.length > 0 || 
+    result.allergenInfo.cautions.length > 0
+  );
+
   return (
     <div className={cn("w-full max-w-xl mx-auto space-y-4 animate-slide-up", className)}>
       <Card className="border border-border/50 shadow-sm">
@@ -46,6 +57,42 @@ const FoodAnalysis = ({ result, className }: FoodAnalysisProps) => {
             Nutritional information per serving
           </CardDescription>
         </CardHeader>
+        
+        {hasAllergens && (
+          <div className="px-6 mb-4">
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-sm font-medium text-yellow-800 mb-1">
+                    Potential Allergens
+                  </h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {result.allergenInfo?.allergens.map((allergen, index) => (
+                      <span 
+                        key={index}
+                        className="inline-flex items-center px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-medium"
+                      >
+                        {allergen}
+                      </span>
+                    ))}
+                    {result.allergenInfo?.cautions.map((caution, index) => (
+                      <span 
+                        key={`caution-${index}`}
+                        className="inline-flex items-center px-2 py-1 rounded-full bg-orange-100 text-orange-800 text-xs font-medium"
+                      >
+                        {caution}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-xs text-yellow-700 mt-1">
+                    This food may contain ingredients that could cause allergic reactions.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         
         <CardContent className="pb-2">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">

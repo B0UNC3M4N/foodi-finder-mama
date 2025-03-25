@@ -1,6 +1,7 @@
 
 import { FoodRecognitionResult, NutritionInfo } from "@/types";
 import { toast } from "sonner";
+import { checkAllergens } from "./edamamService";
 
 // API constants
 const CALORIE_MAMA_API_KEY = "f934310199cd6b97e1086ed6cfb20825"; 
@@ -31,16 +32,39 @@ export async function recognizeFood(imageFile: File): Promise<FoodRecognitionRes
     }
     
     const data = await response.json();
-    return mapApiResponseToResult(data);
+    const result = mapApiResponseToResult(data);
     
-    // Fallback to mock data - removed the invalid comparison
+    // Check for allergens after getting food recognition result
+    try {
+      const allergenInfo = await checkAllergens(result.name);
+      if (allergenInfo) {
+        result.allergenInfo = allergenInfo;
+      }
+    } catch (allergenError) {
+      console.error("Failed to fetch allergen information:", allergenError);
+    }
+    
+    return result;
+    
   } catch (error) {
     console.error("Food recognition error:", error);
     toast.error("Failed to recognize food. Please try again.");
     
     // Fallback to mock data if API call fails
     await new Promise(resolve => setTimeout(resolve, 1500));
-    return mockRecognitionResult(imageFile.name);
+    const mockResult = mockRecognitionResult(imageFile.name);
+    
+    // Add mock allergen data
+    try {
+      const allergenInfo = await checkAllergens(mockResult.name);
+      if (allergenInfo) {
+        mockResult.allergenInfo = allergenInfo;
+      }
+    } catch (allergenError) {
+      console.error("Failed to fetch mock allergen information:", allergenError);
+    }
+    
+    return mockResult;
   }
 }
 
