@@ -76,7 +76,7 @@ const FoodAnalysis = ({ result, className }: FoodAnalysisProps) => {
                 <div className="text-sm font-medium">Protein</div>
                 <div className="text-sm font-medium">{proteinPercentage}%</div>
               </div>
-              <Progress value={proteinPercentage} className="h-2 bg-blue-100" />
+              <Progress value={proteinPercentage} className="h-2" />
             </div>
             
             <div>
@@ -84,7 +84,7 @@ const FoodAnalysis = ({ result, className }: FoodAnalysisProps) => {
                 <div className="text-sm font-medium">Carbs</div>
                 <div className="text-sm font-medium">{carbsPercentage}%</div>
               </div>
-              <Progress value={carbsPercentage} className="h-2 bg-green-100" />
+              <Progress value={carbsPercentage} className="h-2" />
             </div>
             
             <div>
@@ -92,7 +92,7 @@ const FoodAnalysis = ({ result, className }: FoodAnalysisProps) => {
                 <div className="text-sm font-medium">Fat</div>
                 <div className="text-sm font-medium">{fatPercentage}%</div>
               </div>
-              <Progress value={fatPercentage} className="h-2 bg-yellow-100" />
+              <Progress value={fatPercentage} className="h-2" />
             </div>
           </div>
         </CardContent>
