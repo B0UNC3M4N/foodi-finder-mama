@@ -1,3 +1,4 @@
+
 import { FoodRecognitionResult, NutritionInfo } from "@/types";
 import { toast } from "sonner";
 
@@ -15,32 +16,31 @@ export async function recognizeFood(imageFile: File): Promise<FoodRecognitionRes
     // Prepare image before sending to API
     const processedImage = await prepareImageForAPI(imageFile);
     
-    // If using the actual API
-    if (CALORIE_MAMA_API_KEY !== "YOUR_API_KEY") {
-      const formData = new FormData();
-      formData.append("media", processedImage);
-      
-      const response = await fetch(`${API_ENDPOINT}?user_key=${CALORIE_MAMA_API_KEY}`, {
-        method: 'POST',
-        body: formData
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`API error: ${errorData?.error?.errorDetail || response.status}`);
-      }
-      
-      const data = await response.json();
-      return mapApiResponseToResult(data);
+    // Always attempt to use the API since we have a key set
+    const formData = new FormData();
+    formData.append("media", processedImage);
+    
+    const response = await fetch(`${API_ENDPOINT}?user_key=${CALORIE_MAMA_API_KEY}`, {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`API error: ${errorData?.error?.errorDetail || response.status}`);
     }
     
-    // If no API key provided, use mock data for demonstration
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    return mockRecognitionResult(imageFile.name);
+    const data = await response.json();
+    return mapApiResponseToResult(data);
+    
+    // Fallback to mock data - removed the invalid comparison
   } catch (error) {
     console.error("Food recognition error:", error);
     toast.error("Failed to recognize food. Please try again.");
-    return null;
+    
+    // Fallback to mock data if API call fails
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    return mockRecognitionResult(imageFile.name);
   }
 }
 
