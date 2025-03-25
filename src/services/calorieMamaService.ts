@@ -2,7 +2,7 @@ import { FoodRecognitionResult, NutritionInfo } from "@/types";
 import { toast } from "sonner";
 
 // API constants
-const CALORIE_MAMA_API_KEY = "YOUR_API_KEY"; 
+const CALORIE_MAMA_API_KEY = "f934310199cd6b97e1086ed6cfb20825"; 
 const API_ENDPOINT = "https://api-2445582032290.production.gw.apicast.io/v1/foodrecognition";
 
 /**
