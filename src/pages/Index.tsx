@@ -18,7 +18,8 @@ import {
   ArrowRight, 
   DatabaseIcon,
   Camera,
-  InfoIcon
+  InfoIcon,
+  Utensils
 } from "lucide-react";
 
 const Index = () => {
