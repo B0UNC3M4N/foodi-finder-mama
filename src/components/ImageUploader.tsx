@@ -1,9 +1,9 @@
-
 import { useState, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { Camera, Upload, X, Loader2 } from "lucide-react";
+import { Camera, Upload, X, Loader2, FlipHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "./ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ImageUploaderProps {
   onImageUploaded: (file: File, previewUrl: string) => void;
@@ -14,9 +14,13 @@ const ImageUploader = ({ onImageUploaded, isProcessing }: ImageUploaderProps) =>
   const [dragActive, setDragActive] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [showCameraCapture, setShowCameraCapture] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [useFrontCamera, setUseFrontCamera] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const isMobile = useIsMobile();
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -78,32 +82,92 @@ const ImageUploader = ({ onImageUploaded, isProcessing }: ImageUploaderProps) =>
   }, []);
 
   const startCamera = useCallback(async () => {
+    // Reset any previous errors
+    setCameraError(null);
     setShowCameraCapture(true);
+    
     try {
       if (videoRef.current) {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: "environment" } 
-        });
+        // Stop any existing stream
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+        }
+        
+        // Try to get camera access with current facing mode
+        const facingMode = useFrontCamera ? "user" : "environment";
+        const constraints = {
+          video: {
+            facingMode,
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          },
+          audio: false
+        };
+        
+        console.log(`Attempting to access camera with facingMode: ${facingMode}`);
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        
+        // Save stream reference for cleanup
+        streamRef.current = stream;
         videoRef.current.srcObject = stream;
+        
+        // Ensure video plays automatically
+        videoRef.current.onloadedmetadata = () => {
+          if (videoRef.current) {
+            videoRef.current.play().catch(err => {
+              console.error("Error playing video:", err);
+              setCameraError("Could not start video stream. Please check your browser settings.");
+            });
+          }
+        };
       }
     } catch (err) {
       console.error("Error accessing camera:", err);
-      toast.error("Failed to access camera. Please check permissions.");
-      setShowCameraCapture(false);
+      
+      // Handle iOS specific issues
+      if (/iPhone|iPad|iPod/.test(navigator.userAgent) && !window.location.href.startsWith("https")) {
+        setCameraError("Camera access requires HTTPS on iOS devices.");
+      } else {
+        setCameraError("Failed to access camera. Please check your camera permissions.");
+      }
+      
+      // Keep the camera UI open to show error message
     }
-  }, []);
+  }, [useFrontCamera]);
 
   const stopCamera = useCallback(() => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-      tracks.forEach(track => track.stop());
+    // Stop all tracks in the stream
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    
+    // Clear video source
+    if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+    
+    // Reset UI state
     setShowCameraCapture(false);
+    setCameraError(null);
   }, []);
 
+  const toggleCamera = useCallback(() => {
+    setUseFrontCamera(prev => !prev);
+    // Restart camera with new setting
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+      
+      // Small delay to ensure previous camera is fully stopped
+      setTimeout(() => {
+        startCamera();
+      }, 300);
+    }
+  }, [startCamera]);
+
   const capturePhoto = useCallback(() => {
-    if (videoRef.current && canvasRef.current) {
+    if (videoRef.current && canvasRef.current && streamRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       
@@ -114,7 +178,18 @@ const ImageUploader = ({ onImageUploaded, isProcessing }: ImageUploaderProps) =>
       // Draw the video frame to the canvas
       const ctx = canvas.getContext('2d');
       if (ctx) {
+        // If using front camera, flip horizontally to create a mirror effect
+        if (useFrontCamera) {
+          ctx.translate(canvas.width, 0);
+          ctx.scale(-1, 1);
+        }
+        
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Restore context if we modified it
+        if (useFrontCamera) {
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+        }
         
         // Convert the canvas to a blob and then to a File object
         canvas.toBlob((blob) => {
@@ -130,28 +205,71 @@ const ImageUploader = ({ onImageUploaded, isProcessing }: ImageUploaderProps) =>
         }, "image/jpeg", 0.9);
       }
     }
-  }, [onImageUploaded, stopCamera]);
+  }, [onImageUploaded, stopCamera, useFrontCamera]);
+
+  // Clean up on unmount
+  useCallback(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
 
   return (
     <div className="w-full mx-auto max-w-xl">
       {showCameraCapture ? (
         <div className="relative">
           <div className="rounded-xl border-2 border-dashed border-muted-foreground/30 overflow-hidden h-72">
-            <video 
-              ref={videoRef} 
-              autoPlay 
-              playsInline 
-              className="w-full h-full object-cover"
-            />
+            {cameraError ? (
+              <div className="h-full flex items-center justify-center p-4 text-center bg-background/95">
+                <div>
+                  <div className="mb-4 rounded-full p-3 bg-destructive/10 text-destructive w-12 h-12 flex items-center justify-center mx-auto">
+                    <X className="h-6 w-6" />
+                  </div>
+                  <p className="text-sm font-medium mb-4">{cameraError}</p>
+                  <Button
+                    variant="outline"
+                    onClick={stopCamera}
+                    className="flex items-center gap-2"
+                  >
+                    <X className="h-4 w-4" />
+                    Close Camera
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <video 
+                ref={videoRef} 
+                autoPlay 
+                playsInline 
+                muted
+                className={cn(
+                  "w-full h-full object-cover",
+                  useFrontCamera && "scale-x-[-1]" // Mirror effect for front camera
+                )}
+              />
+            )}
           </div>
           
-          <div className="mt-4 flex items-center justify-center gap-4">
+          <div className="mt-4 flex items-center justify-center gap-4 flex-wrap">
             <Button
               onClick={capturePhoto}
               className="flex items-center gap-2 bg-primary"
+              disabled={!!cameraError}
             >
               <Camera className="h-4 w-4" />
               Take Photo
+            </Button>
+            
+            <Button
+              variant="outline"
+              onClick={toggleCamera}
+              className="flex items-center gap-2"
+              disabled={!!cameraError}
+            >
+              <FlipHorizontal className="h-4 w-4" />
+              Switch Camera
             </Button>
             
             <Button
