@@ -1,5 +1,5 @@
 
-import { FoodRecognitionResult, NutritionInfo } from "@/types";
+import { FoodRecognitionResult, NutritionInfo, AllergenInfo } from "@/types";
 import { toast } from "sonner";
 import { checkAllergens } from "./edamamService";
 
@@ -36,12 +36,16 @@ export async function recognizeFood(imageFile: File): Promise<FoodRecognitionRes
     
     // Check for allergens after getting food recognition result
     try {
+      console.log("Getting allergen info for:", result.name);
       const allergenInfo = await checkAllergens(result.name);
+      console.log("Allergen info received:", allergenInfo);
       if (allergenInfo) {
         result.allergenInfo = allergenInfo;
       }
     } catch (allergenError) {
       console.error("Failed to fetch allergen information:", allergenError);
+      // Add mock allergen data as fallback
+      result.allergenInfo = await checkAllergens(result.name);
     }
     
     return result;
