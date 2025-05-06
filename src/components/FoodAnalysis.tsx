@@ -1,7 +1,7 @@
 
 import { FoodRecognitionResult } from "@/types";
 import { cn } from "@/lib/utils";
-import { CircleCheck, Award, Banana, Apple, Circle, AlertTriangle, AlertCircle } from "lucide-react";
+import { CircleCheck, Award, Banana, Apple, Circle, AlertTriangle, AlertCircle, Info, Allergen, Egg, Milk, Gluten, Peanut, Warning } from "lucide-react";
 import { 
   Card, 
   CardContent,
@@ -22,6 +22,19 @@ interface FoodAnalysisProps {
   result: FoodRecognitionResult | null;
   className?: string;
 }
+
+// Map common allergens to appropriate icons
+const allergenIcons: Record<string, JSX.Element> = {
+  'Eggs': <Egg className="h-3.5 w-3.5" />,
+  'Egg': <Egg className="h-3.5 w-3.5" />,
+  'Milk': <Milk className="h-3.5 w-3.5" />,
+  'Dairy': <Milk className="h-3.5 w-3.5" />,
+  'Gluten': <Gluten className="h-3.5 w-3.5" />,
+  'Wheat': <Gluten className="h-3.5 w-3.5" />,
+  'Peanut': <Peanut className="h-3.5 w-3.5" />,
+  'Peanuts': <Peanut className="h-3.5 w-3.5" />,
+  'Nuts': <Peanut className="h-3.5 w-3.5" />
+};
 
 const FoodAnalysis = ({ result, className }: FoodAnalysisProps) => {
   if (!result) return null;
@@ -62,31 +75,48 @@ const FoodAnalysis = ({ result, className }: FoodAnalysisProps) => {
           <div className="px-6 mb-4">
             <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <div className="flex items-start gap-2">
-                <AlertTriangle className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                <Allergen className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="text-sm font-medium text-yellow-800 mb-1">
-                    Potential Allergens
-                  </h4>
-                  <div className="flex flex-wrap gap-1.5">
-                    {result.allergenInfo?.allergens.map((allergen, index) => (
-                      <span 
-                        key={index}
-                        className="inline-flex items-center px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-medium"
-                      >
-                        {allergen}
-                      </span>
-                    ))}
-                    {result.allergenInfo?.cautions.map((caution, index) => (
-                      <span 
-                        key={`caution-${index}`}
-                        className="inline-flex items-center px-2 py-1 rounded-full bg-orange-100 text-orange-800 text-xs font-medium"
-                      >
-                        {caution}
-                      </span>
-                    ))}
-                  </div>
-                  <p className="text-xs text-yellow-700 mt-1">
-                    This food may contain ingredients that could cause allergic reactions.
+                  {result.allergenInfo?.allergens.length > 0 && (
+                    <>
+                      <h4 className="text-sm font-medium text-yellow-800 mb-1">
+                        Potential Allergens
+                      </h4>
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {result.allergenInfo?.allergens.map((allergen, index) => (
+                          <span 
+                            key={index}
+                            className="inline-flex items-center px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-medium gap-1"
+                          >
+                            {allergenIcons[allergen] || <Warning className="h-3.5 w-3.5" />}
+                            {allergen}
+                          </span>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  
+                  {result.allergenInfo?.cautions.length > 0 && (
+                    <>
+                      <h4 className="text-sm font-medium text-orange-800 mb-1">
+                        Dietary Cautions
+                      </h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {result.allergenInfo?.cautions.map((caution, index) => (
+                          <span 
+                            key={`caution-${index}`}
+                            className="inline-flex items-center px-2 py-1 rounded-full bg-orange-100 text-orange-800 text-xs font-medium gap-1"
+                          >
+                            <Info className="h-3.5 w-3.5" />
+                            {caution}
+                          </span>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  <p className="text-xs text-yellow-700 mt-2">
+                    Information provided by AI analysis. Always check food labels for allergens.
                   </p>
                 </div>
               </div>

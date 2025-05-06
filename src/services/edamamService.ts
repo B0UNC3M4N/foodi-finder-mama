@@ -1,133 +1,98 @@
 
-import { toast } from "sonner";
+import { AllergenInfo } from "@/types";
 
-// API constants
-const EDAMAM_APP_ID = "your-app-id"; 
-const EDAMAM_APP_KEY = "28f50e11";
-const API_ENDPOINT = "https://api.edamam.com/api/nutrition-data";
-
-/**
- * Types for Edamam API responses
- */
-interface EdamamNutritionResponse {
-  healthLabels?: string[];
-  cautions?: string[];
-  totalNutrients?: Record<string, {
-    label: string;
-    quantity: number;
-    unit: string;
-  }>;
-}
-
-export interface AllergenInfo {
-  allergens: string[];
-  cautions: string[];
-}
+// OpenAI API constants
+const OPENAI_API_KEY = "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";
+const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 
 /**
- * Fetches nutrition and allergen data from the Edamam API
+ * Check for allergens in a food item using OpenAI API
  * @param foodName The name of the food to check for allergens
- * @returns A promise that resolves to allergen information or null if an error occurs
+ * @returns Promise resolving to allergen information or null
  */
 export async function checkAllergens(foodName: string): Promise<AllergenInfo | null> {
   try {
-    const url = `${API_ENDPOINT}?app_id=${EDAMAM_APP_ID}&app_key=${EDAMAM_APP_KEY}&ingr=${encodeURIComponent(foodName)}`;
-    
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
-    
-    const data = await response.json() as EdamamNutritionResponse;
-    
-    // Extract allergen information
-    const allergenInfo: AllergenInfo = {
-      allergens: filterAllergenLabels(data.healthLabels || []),
-      cautions: data.cautions || []
-    };
-    
-    return allergenInfo;
-  } catch (error) {
-    console.error("Allergen check error:", error);
-    
-    // Return mock data for demonstration
-    return getMockAllergenData(foodName);
-  }
-}
+    const prompt = `As a nutritional expert, analyze "${foodName}" and provide a JSON response with two arrays:
+1. "allergens": Common allergens present (e.g., dairy, eggs, nuts, gluten, shellfish, soy)
+2. "cautions": Dietary cautions (e.g., high sodium, sulfites, FODMAPs)
 
-/**
- * Filter health labels to extract only allergen-related ones
- */
-function filterAllergenLabels(healthLabels: string[]): string[] {
-  const allergenKeywords = [
-    "TREE_NUT_FREE", "PEANUT_FREE", "FISH_FREE", "SHELLFISH_FREE",
-    "DAIRY_FREE", "EGG_FREE", "SOY_FREE", "WHEAT_FREE", "GLUTEN_FREE",
-    "SESAME_FREE", "MUSTARD_FREE", "CELERY_FREE", "CRUSTACEAN_FREE",
-    "MOLLUSK_FREE", "SULFITE_FREE"
-  ];
-  
-  // If a food is X_FREE, it does NOT contain X, so we need to invert the logic
-  return allergenKeywords
-    .filter(keyword => !healthLabels.includes(keyword))
-    .map(keyword => {
-      // Convert PEANUT_FREE to Peanut
-      const allergen = keyword.replace("_FREE", "").toLowerCase()
-        .split('_')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ');
-      return allergen;
+Include only relevant, factual information. If uncertain about specific allergens, include only those that are commonly associated with this food. Return only the JSON without explanations.`;
+
+    const response = await fetch(OPENAI_API_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.3, // Lower temperature for more focused responses
+        max_tokens: 150    // Limit response size
+      })
     });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('OpenAI API error:', errorData);
+      return mockAllergenData(foodName);
+    }
+
+    const data = await response.json();
+    const content = data.choices[0]?.message?.content;
+    
+    if (content) {
+      try {
+        // Parse the JSON response from OpenAI
+        const allergenData = JSON.parse(content);
+        return {
+          allergens: allergenData.allergens || [],
+          cautions: allergenData.cautions || []
+        };
+      } catch (parseError) {
+        console.error('Error parsing OpenAI response:', parseError);
+        return mockAllergenData(foodName);
+      }
+    }
+    
+    return mockAllergenData(foodName);
+  } catch (error) {
+    console.error('Error calling OpenAI API:', error);
+    return mockAllergenData(foodName);
+  }
 }
 
 /**
- * Mock allergen data for demo purposes when API fails
+ * Generate mock allergen data for testing or when API fails
  */
-function getMockAllergenData(foodName: string): AllergenInfo {
-  // Define common allergens for different food types
-  const allergenMap: Record<string, { allergens: string[], cautions: string[] }> = {
-    "peanut": {
-      allergens: ["Peanut", "Tree Nut"],
-      cautions: ["Peanuts", "Tree Nuts"]
-    },
-    "milk": {
-      allergens: ["Dairy"],
-      cautions: ["Milk"]
-    },
-    "egg": {
-      allergens: ["Egg"],
-      cautions: ["Eggs"]
-    },
-    "fish": {
-      allergens: ["Fish"],
-      cautions: ["Fish"]
-    },
-    "shrimp": {
-      allergens: ["Shellfish", "Crustacean"],
-      cautions: ["Shellfish"]
-    },
-    "wheat": {
-      allergens: ["Wheat", "Gluten"],
-      cautions: ["Wheat", "Gluten"]
-    },
-    "soy": {
-      allergens: ["Soy"],
-      cautions: ["Soybeans"]
-    }
+function mockAllergenData(foodName: string): AllergenInfo {
+  const foodAllergenMap: Record<string, AllergenInfo> = {
+    'Apple': { allergens: ['Oral Allergy Syndrome'], cautions: ['Pesticides'] },
+    'Banana': { allergens: ['Latex-fruit syndrome'], cautions: ['High in sugar'] },
+    'Burger': { allergens: ['Wheat', 'Dairy', 'Soy'], cautions: ['High fat', 'High sodium'] },
+    'Pizza': { allergens: ['Wheat', 'Dairy'], cautions: ['High sodium', 'High fat'] },
+    'Salad': { allergens: [], cautions: ['Potential pesticides'] },
+    'Pasta': { allergens: ['Wheat', 'Gluten'], cautions: ['High carbohydrates'] },
+    'Chocolate': { allergens: ['Dairy', 'Soy'], cautions: ['Caffeine', 'High sugar'] },
+    'Sushi': { allergens: ['Fish', 'Shellfish'], cautions: ['Raw food'] },
+    'Bread': { allergens: ['Wheat', 'Gluten'], cautions: [] },
+    'Ice Cream': { allergens: ['Dairy', 'Eggs'], cautions: ['High sugar'] },
   };
   
-  // Check if the food name contains any of the keys in allergenMap
-  const lowerFoodName = foodName.toLowerCase();
-  
-  for (const [key, value] of Object.entries(allergenMap)) {
-    if (lowerFoodName.includes(key)) {
-      return value;
-    }
-  }
-  
-  // Default mock data with no allergens
-  return {
+  const defaultAllergens: AllergenInfo = {
     allergens: [],
-    cautions: []
+    cautions: ['Check ingredients list']
   };
+  
+  // Check if we have predefined allergen data for this food
+  const knownFood = Object.keys(foodAllergenMap).find(
+    known => foodName.toLowerCase().includes(known.toLowerCase())
+  );
+  
+  return knownFood ? foodAllergenMap[knownFood] : defaultAllergens;
 }
