@@ -1,7 +1,7 @@
 
 import { FoodRecognitionResult } from "@/types";
 import { cn } from "@/lib/utils";
-import { CircleCheck, Award, Banana, Apple, Circle, AlertTriangle, AlertCircle, Info, Allergen, Egg, Milk, Gluten, Peanut, Warning } from "lucide-react";
+import { CircleCheck, Award, Banana, Apple, Circle, AlertTriangle, AlertCircle, Info, Egg, Milk } from "lucide-react";
 import { 
   Card, 
   CardContent,
@@ -29,11 +29,11 @@ const allergenIcons: Record<string, JSX.Element> = {
   'Egg': <Egg className="h-3.5 w-3.5" />,
   'Milk': <Milk className="h-3.5 w-3.5" />,
   'Dairy': <Milk className="h-3.5 w-3.5" />,
-  'Gluten': <Gluten className="h-3.5 w-3.5" />,
-  'Wheat': <Gluten className="h-3.5 w-3.5" />,
-  'Peanut': <Peanut className="h-3.5 w-3.5" />,
-  'Peanuts': <Peanut className="h-3.5 w-3.5" />,
-  'Nuts': <Peanut className="h-3.5 w-3.5" />
+  'Gluten': <AlertCircle className="h-3.5 w-3.5" />,
+  'Wheat': <AlertCircle className="h-3.5 w-3.5" />,
+  'Peanut': <AlertTriangle className="h-3.5 w-3.5" />,
+  'Peanuts': <AlertTriangle className="h-3.5 w-3.5" />,
+  'Nuts': <AlertTriangle className="h-3.5 w-3.5" />
 };
 
 const FoodAnalysis = ({ result, className }: FoodAnalysisProps) => {
@@ -75,7 +75,7 @@ const FoodAnalysis = ({ result, className }: FoodAnalysisProps) => {
           <div className="px-6 mb-4">
             <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <div className="flex items-start gap-2">
-                <Allergen className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                 <div>
                   {result.allergenInfo?.allergens.length > 0 && (
                     <>
@@ -88,7 +88,7 @@ const FoodAnalysis = ({ result, className }: FoodAnalysisProps) => {
                             key={index}
                             className="inline-flex items-center px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-medium gap-1"
                           >
-                            {allergenIcons[allergen] || <Warning className="h-3.5 w-3.5" />}
+                            {allergenIcons[allergen] || <AlertCircle className="h-3.5 w-3.5" />}
                             {allergen}
                           </span>
                         ))}
