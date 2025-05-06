@@ -1,7 +1,7 @@
-
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "sonner";
+import { format, isToday, isYesterday, isSameWeek, isSameMonth } from "date-fns";
 import { recognizeFood } from "@/services/calorieMamaService";
 import { FoodRecognitionResult, HistoryEntry } from "@/types";
 
@@ -12,14 +12,16 @@ import HistoryItem from "@/components/HistoryItem";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Clock, 
-  Save, 
-  ArrowRight, 
-  DatabaseIcon,
   Camera,
   InfoIcon,
-  Utensils
+  Utensils,
+  ArrowRight,
+  DatabaseIcon,
+  Calendar,
+  CalendarClock,
 } from "lucide-react";
 
 const Index = () => {
@@ -49,6 +51,36 @@ const Index = () => {
     } catch (error) {
       console.error("Error saving history:", error);
     }
+  }, [history]);
+
+  // Group history entries by date
+  const groupedHistory = useMemo(() => {
+    const groups: { [key: string]: HistoryEntry[] } = {};
+    
+    history.forEach(entry => {
+      let groupLabel = '';
+      const entryDate = new Date(entry.timestamp);
+      
+      if (isToday(entryDate)) {
+        groupLabel = 'Today';
+      } else if (isYesterday(entryDate)) {
+        groupLabel = 'Yesterday';
+      } else if (isSameWeek(entryDate, new Date())) {
+        groupLabel = 'This Week';
+      } else if (isSameMonth(entryDate, new Date())) {
+        groupLabel = 'This Month';
+      } else {
+        groupLabel = format(entryDate, 'MMMM yyyy');
+      }
+      
+      if (!groups[groupLabel]) {
+        groups[groupLabel] = [];
+      }
+      
+      groups[groupLabel].push(entry);
+    });
+    
+    return groups;
   }, [history]);
 
   const handleImageUploaded = useCallback(async (file: File, previewUrl: string) => {
@@ -194,41 +226,71 @@ const Index = () => {
             <div className="grid md:grid-cols-2 gap-8">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-medium">Recent Scans</h2>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-xs h-8"
-                    onClick={() => {
-                      if (history.length > 0) {
-                        if (window.confirm("Are you sure you want to clear all history?")) {
-                          setHistory([]);
-                          setSelectedHistoryEntry(null);
-                          toast.success("History cleared");
+                  <h2 className="text-lg font-medium flex items-center gap-2">
+                    <CalendarClock className="h-4 w-4" />
+                    Recent Scans
+                  </h2>
+                  
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-xs h-8 gap-1"
+                      onClick={() => setActiveTab("scan")}
+                      disabled={history.length === 0}
+                    >
+                      <Camera className="h-3.5 w-3.5" />
+                      New Scan
+                    </Button>
+                    
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-xs h-8"
+                      onClick={() => {
+                        if (history.length > 0) {
+                          if (window.confirm("Are you sure you want to clear all history?")) {
+                            setHistory([]);
+                            setSelectedHistoryEntry(null);
+                            toast.success("History cleared");
+                          }
+                        } else {
+                          toast.info("No history to clear");
                         }
-                      } else {
-                        toast.info("No history to clear");
-                      }
-                    }}
-                  >
-                    Clear All
-                  </Button>
+                      }}
+                      disabled={history.length === 0}
+                    >
+                      Clear All
+                    </Button>
+                  </div>
                 </div>
                 
                 <div className="border rounded-lg overflow-hidden">
                   {history.length > 0 ? (
-                    <div className="max-h-[450px] overflow-y-auto">
-                      {history.map((entry) => (
-                        <div key={entry.id}>
-                          <HistoryItem 
-                            entry={entry}
-                            onClick={handleHistoryItemClick}
-                            isActive={selectedHistoryEntry?.id === entry.id}
-                          />
-                          <Separator className="last:hidden" />
-                        </div>
-                      ))}
-                    </div>
+                    <ScrollArea className="h-[450px]">
+                      <div className="p-1">
+                        {Object.entries(groupedHistory).map(([dateGroup, entries]) => (
+                          <div key={dateGroup} className="mb-3 last:mb-0">
+                            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-3 py-2 flex items-center gap-1.5">
+                              <Calendar className="h-3.5 w-3.5" />
+                              {dateGroup}
+                            </h3>
+                            
+                            <div className="space-y-1">
+                              {entries.map((entry) => (
+                                <HistoryItem 
+                                  key={entry.id}
+                                  entry={entry}
+                                  onClick={handleHistoryItemClick}
+                                  isActive={selectedHistoryEntry?.id === entry.id}
+                                  showDate={true}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
                   ) : (
                     <div className="p-6 text-center">
                       <div className="rounded-full p-3 bg-muted/50 w-12 h-12 flex items-center justify-center mx-auto mb-4">
@@ -255,7 +317,7 @@ const Index = () => {
               <div>
                 {selectedHistoryEntry ? (
                   <>
-                    <div className="mb-6 relative rounded-lg overflow-hidden h-64 w-full">
+                    <div className="mb-6 relative rounded-lg overflow-hidden h-64 w-full border">
                       {selectedHistoryEntry.imageUrl ? (
                         <img 
                           src={selectedHistoryEntry.imageUrl} 
@@ -267,11 +329,14 @@ const Index = () => {
                           <Utensils className="h-10 w-10 text-muted-foreground" />
                         </div>
                       )}
+                      <div className="absolute bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm p-2 text-sm font-medium">
+                        {selectedHistoryEntry.result.name} - {format(selectedHistoryEntry.timestamp, 'PPpp')}
+                      </div>
                     </div>
                     <FoodAnalysis result={selectedHistoryEntry.result} />
                   </>
                 ) : (
-                  <div className="h-full flex items-center justify-center text-center p-6">
+                  <div className="h-full flex items-center justify-center text-center p-6 border rounded-lg">
                     <div className="max-w-md">
                       <div className="mb-4 rounded-full p-4 bg-primary/10 w-16 h-16 flex items-center justify-center mx-auto">
                         <Clock className="h-8 w-8 text-primary" />
