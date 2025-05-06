@@ -1,4 +1,3 @@
-
 import { AllergenInfo } from "@/types";
 
 // OpenAI API constants
@@ -19,12 +18,7 @@ export async function checkAllergens(foodName: string): Promise<AllergenInfo | n
 
 Include only relevant, factual information. If uncertain about specific allergens, include only those that are commonly associated with this food. Return only the JSON without explanations.`;
 
-    // For now, let's skip the API call and use mock data since we're having authorization issues
-    // This ensures the user still sees allergen information while we troubleshoot API connectivity
-    console.log("Using mock allergen data instead of API call");
-    return mockAllergenData(foodName);
-
-    /* The API call code remains but is not executed:
+    // Call the OpenAI API
     const response = await fetch(OPENAI_API_URL, {
       method: 'POST',
       headers: {
@@ -65,8 +59,11 @@ Include only relevant, factual information. If uncertain about specific allergen
         console.error('Error parsing OpenAI response:', parseError);
         return mockAllergenData(foodName);
       }
+    } else {
+      // Fallback to mock data if no content is returned
+      console.error('No content returned from OpenAI API');
+      return mockAllergenData(foodName);
     }
-    */
   } catch (error) {
     console.error('Error calling OpenAI API:', error);
     return mockAllergenData(foodName);
