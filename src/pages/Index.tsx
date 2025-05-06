@@ -6,7 +6,7 @@ import { recognizeFood } from "@/services/calorieMamaService";
 import { FoodRecognitionResult, HistoryEntry } from "@/types";
 
 import Header from "@/components/Header";
-import ImageUploader from "@/components/ImageUploader";
+import ImageUploader from "@/components/image-uploader";
 import FoodAnalysis from "@/components/FoodAnalysis";
 import HistoryItem from "@/components/HistoryItem";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
