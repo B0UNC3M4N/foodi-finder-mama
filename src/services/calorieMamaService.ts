@@ -5,6 +5,7 @@ import { checkAllergens } from "./edamamService";
 import { prepareImageForAPI } from "./imageProcessingService";
 import { mapApiResponseToResult } from "./responseMapperService";
 import { getMockRecognitionResult } from "./mockDataService";
+import { analyzeDietaryCompatibility } from "./dietaryCompatibilityService";
 
 // API constants
 const CALORIE_MAMA_API_KEY = "f934310199cd6b97e1086ed6cfb20825"; 
@@ -51,6 +52,21 @@ export async function recognizeFood(imageFile: File): Promise<FoodRecognitionRes
       result.allergenInfo = await checkAllergens(result.name);
     }
     
+    // Analyze dietary compatibility
+    try {
+      console.log("Analyzing dietary compatibility for:", result.name);
+      const dietaryCompatibility = await analyzeDietaryCompatibility(
+        result.name,
+        result.nutrition,
+        result.allergenInfo
+      );
+      if (dietaryCompatibility) {
+        result.dietaryCompatibility = dietaryCompatibility;
+      }
+    } catch (compatibilityError) {
+      console.error("Failed to analyze dietary compatibility:", compatibilityError);
+    }
+    
     return result;
     
   } catch (error) {
@@ -69,6 +85,20 @@ export async function recognizeFood(imageFile: File): Promise<FoodRecognitionRes
       }
     } catch (allergenError) {
       console.error("Failed to fetch mock allergen information:", allergenError);
+    }
+    
+    // Add mock dietary compatibility
+    try {
+      const dietaryCompatibility = await analyzeDietaryCompatibility(
+        mockResult.name,
+        mockResult.nutrition,
+        mockResult.allergenInfo
+      );
+      if (dietaryCompatibility) {
+        mockResult.dietaryCompatibility = dietaryCompatibility;
+      }
+    } catch (compatibilityError) {
+      console.error("Failed to analyze mock dietary compatibility:", compatibilityError);
     }
     
     return mockResult;

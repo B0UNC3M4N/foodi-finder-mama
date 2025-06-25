@@ -1,4 +1,3 @@
-
 import { FoodRecognitionResult } from "@/types";
 import { cn } from "@/lib/utils";
 import { CircleCheck, Award, Banana, Apple, Circle, AlertTriangle, AlertCircle, Info, Egg, Milk } from "lucide-react";
@@ -17,6 +16,7 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from "@/components/ui/tooltip";
+import DietaryCompatibility from "./DietaryCompatibility";
 
 interface FoodAnalysisProps {
   result: FoodRecognitionResult | null;
@@ -192,6 +192,14 @@ const FoodAnalysis = ({ result, className }: FoodAnalysisProps) => {
           </CardFooter>
         )}
       </Card>
+
+      {/* Dietary Compatibility Section */}
+      {result.dietaryCompatibility && (
+        <DietaryCompatibility 
+          compatibility={result.dietaryCompatibility}
+          className="border border-border/50 shadow-sm"
+        />
+      )}
     </div>
   );
 };

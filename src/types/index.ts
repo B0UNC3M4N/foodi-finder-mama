@@ -4,6 +4,7 @@ export interface FoodRecognitionResult {
   score: number;
   nutrition?: NutritionInfo;
   allergenInfo?: AllergenInfo;
+  dietaryCompatibility?: DietaryCompatibility;
 }
 
 export interface NutritionInfo {
@@ -28,4 +29,20 @@ export interface HistoryEntry {
 export interface AllergenInfo {
   allergens: string[];
   cautions: string[];
+}
+
+export interface DietaryCompatibility {
+  keto: DietStatus;
+  vegan: DietStatus;
+  vegetarian: DietStatus;
+  glutenFree: DietStatus;
+  diabeticSafe: DietStatus;
+  heartHealthy: DietStatus;
+  summary: string;
+}
+
+export interface DietStatus {
+  compatible: boolean;
+  status: 'compatible' | 'not-compatible' | 'caution';
+  reason?: string;
 }
