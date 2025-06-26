@@ -1,3 +1,4 @@
+
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Target } from "lucide-react";
@@ -9,7 +10,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { useQuery } from "@tanstack/react-query";
 import { getHistory, saveHistory } from "@/services/localStorageService";
 import { useEffect } from "react";
-import { Header } from "@/components/Header";
+import Header from "@/components/Header";
+import { format } from "date-fns";
 
 const Index = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -17,13 +19,16 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: history, refetch: refetchHistory } = useQuery('history', getHistory);
+  const { data: history, refetch: refetchHistory } = useQuery({
+    queryKey: ['history'],
+    queryFn: getHistory,
+  });
 
   useEffect(() => {
     refetchHistory();
-  }, []);
+  }, [refetchHistory]);
 
-  const handleImageUpload = (file: File | null) => {
+  const handleImageUpload = (file: File, previewUrl: string) => {
     setImageFile(file);
     setRecognitionResult(null);
     setError(null);
@@ -51,7 +56,8 @@ const Index = () => {
           result: result,
         };
         
-        saveHistory([...(history || []), newEntry]);
+        const currentHistory = history || [];
+        saveHistory([...currentHistory, newEntry]);
         refetchHistory();
       } else {
         setError("Failed to recognize food. Please try again.");
@@ -64,8 +70,21 @@ const Index = () => {
     }
   };
 
+  const groupedHistory = useMemo(() => {
+    if (!history || !Array.isArray(history)) return {};
+    
+    return history.reduce((groups: { [key: string]: HistoryEntry[] }, entry) => {
+      const dateKey = format(entry.timestamp, 'yyyy-MM-dd');
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(entry);
+      return groups;
+    }, {});
+  }, [history]);
+
   const hasHistory = useMemo(() => {
-    return history && history.length > 0;
+    return history && Array.isArray(history) && history.length > 0;
   }, [history]);
 
   return (
@@ -93,7 +112,21 @@ const Index = () => {
           </div>
         </div>
 
-        <ImageUploader onImageUpload={handleImageUpload} onAnalyze={analyzeImage} isLoading={isLoading} error={error} />
+        <ImageUploader 
+          onImageUploaded={handleImageUpload} 
+          isProcessing={isLoading} 
+        />
+        
+        {imageFile && !isLoading && !recognitionResult && (
+          <div className="text-center mt-6">
+            <button
+              onClick={analyzeImage}
+              className="bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors font-medium"
+            >
+              Analyze Food
+            </button>
+          </div>
+        )}
         
         {recognitionResult && (
           <FoodAnalysis result={recognitionResult} />
@@ -108,15 +141,24 @@ const Index = () => {
         {hasHistory && (
           <div className="mt-12">
             <h2 className="text-2xl font-semibold text-gray-800 mb-4">Recent History</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {history && history.slice(0, 6).map((entry) => (
-                <div key={entry.id} className="bg-white rounded-lg shadow-md overflow-hidden">
-                  <img src={entry.imageUrl} alt="Food" className="w-full h-48 object-cover" />
-                  <div className="p-4">
-                    <h3 className="font-semibold text-gray-800">{entry.result.name}</h3>
-                    <p className="text-gray-600 text-sm">
-                      {new Date(entry.timestamp).toLocaleDateString()}
-                    </p>
+            <div className="space-y-6">
+              {Object.entries(groupedHistory).slice(0, 3).map(([date, entries]) => (
+                <div key={date} className="space-y-2">
+                  <h3 className="text-lg font-medium text-gray-700 border-b pb-1">
+                    {format(new Date(date), 'EEEE, MMMM do')}
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {entries.slice(0, 6).map((entry) => (
+                      <div key={entry.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+                        <img src={entry.imageUrl} alt="Food" className="w-full h-48 object-cover" />
+                        <div className="p-4">
+                          <h4 className="font-semibold text-gray-800">{entry.result.name}</h4>
+                          <p className="text-gray-600 text-sm">
+                            {entry.result.nutrition?.calories} calories
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))}
