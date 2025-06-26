@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Upload, Target, Clock, TrendingUp, Utensils, Lightbulb, Download, Share2, Camera, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+import Header from "@/components/Header";
 
 interface MealPlanResult {
   goal: string;
@@ -176,8 +176,9 @@ ${mealPlan.motivationTip}`;
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+    <>
+      <Header />
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
         {/* Header */}
         <div className="text-center space-y-4">
           <div className="inline-flex items-center gap-3 bg-white/80 backdrop-blur-sm px-6 py-3 rounded-full shadow-lg border border-white/20">
@@ -494,7 +495,7 @@ ${mealPlan.motivationTip}`;
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 };
 
