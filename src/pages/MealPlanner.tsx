@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Target, Clock, TrendingUp, Utensils, Lightbulb } from "lucide-react";
+import { Upload, Target, Clock, TrendingUp, Utensils, Lightbulb, Download, Share2, Camera } from "lucide-react";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 
 interface MealPlanResult {
   goal: string;
@@ -34,6 +35,7 @@ const MealPlanner = () => {
   const [dietPreference, setDietPreference] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [mealPlan, setMealPlan] = useState<MealPlanResult | null>(null);
+  const [currentDay, setCurrentDay] = useState(1);
 
   const handleImageUpload = (type: 'current' | 'goal') => (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -104,6 +106,53 @@ const MealPlanner = () => {
     }, 2000);
   };
 
+  const generateDayPlan = (day: number) => {
+    setCurrentDay(day);
+    // In real implementation, this would generate different meals for different days
+    toast.success(`Generated Day ${day} meal plan!`);
+  };
+
+  const exportPlan = () => {
+    if (!mealPlan) return;
+    
+    // Create a simple text export of the meal plan
+    const planText = `
+🎯 Your Fitness Goal Summary
+Goal: ${mealPlan.goal}
+Timeline: ${mealPlan.timeline}
+Daily Calories: ${mealPlan.dailyCalories} kcal
+Macro Split: ${mealPlan.macroSplit.protein}P / ${mealPlan.macroSplit.carbs}C / ${mealPlan.macroSplit.fat}F
+
+🍽️ Your Personalized Daily Meal Plan (Day ${currentDay})
+${mealPlan.meals.map(meal => 
+  `${getMealIcon(meal.type)} ${meal.name}\n• ${meal.calories} kcal | ${meal.tags.join(' | ')}\n• ${meal.description}`
+).join('\n\n')}
+
+💡 Personal Motivation Tip
+${mealPlan.motivationTip}
+    `;
+
+    navigator.clipboard.writeText(planText).then(() => {
+      toast.success("Meal plan copied to clipboard!");
+    }).catch(() => {
+      toast.error("Failed to copy meal plan");
+    });
+  };
+
+  const sharePlan = () => {
+    if (navigator.share && mealPlan) {
+      navigator.share({
+        title: 'My AI Generated Meal Plan',
+        text: `Check out my personalized meal plan: ${mealPlan.goal} in ${mealPlan.timeline}!`,
+        url: window.location.href,
+      }).catch(() => {
+        toast.error("Sharing not supported on this device");
+      });
+    } else {
+      exportPlan(); // Fallback to copy to clipboard
+    }
+  };
+
   const getMealIcon = (type: string) => {
     switch (type) {
       case 'breakfast': return '🥣';
@@ -116,13 +165,17 @@ const MealPlanner = () => {
 
   const getTagColor = (tag: string) => {
     switch (tag.toLowerCase()) {
-      case 'high protein': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'gluten-free': return 'bg-green-100 text-green-800 border-green-200';
-      case 'vegan-friendly': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-      case 'heart-healthy': return 'bg-red-100 text-red-800 border-red-200';
-      case 'low carb': return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'energy boost': return 'bg-orange-100 text-orange-800 border-orange-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'high protein':
+      case 'heart-healthy':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'gluten-free':
+      case 'vegan-friendly':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'low carb':
+      case 'energy boost':
+        return 'bg-orange-100 text-orange-800 border-orange-200';
+      default: 
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
@@ -261,15 +314,18 @@ const MealPlanner = () => {
         {/* Results Section */}
         {mealPlan && (
           <div className="space-y-6">
+            {/* Section Header: Goal Summary */}
+            <div className="text-center space-y-2">
+              <div className="flex items-center justify-center gap-2 text-2xl font-semibold text-gray-800">
+                <span className="text-3xl">👤</span>
+                Your Fitness Goal Summary
+              </div>
+              <div className="w-24 h-1 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full mx-auto"></div>
+            </div>
+
             {/* Goal Summary */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5" />
-                  Your Fitness Goal Summary
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="text-center p-4 bg-blue-50 rounded-lg">
                     <TrendingUp className="h-6 w-6 mx-auto mb-2 text-blue-600" />
@@ -297,13 +353,48 @@ const MealPlanner = () => {
               </CardContent>
             </Card>
 
+            {/* Section Header: Daily Meal Plan */}
+            <div className="text-center space-y-2">
+              <div className="flex items-center justify-center gap-2 text-2xl font-semibold text-gray-800">
+                <span className="text-3xl">🍽️</span>
+                Your Personalized Daily Meal Plan
+              </div>
+              <div className="w-32 h-1 bg-gradient-to-r from-green-400 to-blue-400 rounded-full mx-auto"></div>
+            </div>
+
+            {/* Day Switcher */}
+            <div className="flex justify-center gap-2 mb-4">
+              {[1, 2, 3].map((day) => (
+                <Button
+                  key={day}
+                  variant={currentDay === day ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => generateDayPlan(day)}
+                >
+                  Day {day}
+                </Button>
+              ))}
+            </div>
+
             {/* Daily Meal Plan */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Utensils className="h-5 w-5" />
-                  Your Personalized Daily Meal Plan
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Utensils className="h-5 w-5" />
+                    Day {currentDay} Meal Plan
+                  </CardTitle>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={exportPlan}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Download Plan
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={sharePlan}>
+                      <Share2 className="h-4 w-4 mr-2" />
+                      Share Plan
+                    </Button>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 {mealPlan.meals.map((meal, index) => (
@@ -333,17 +424,44 @@ const MealPlanner = () => {
               </CardContent>
             </Card>
 
+            {/* Section Header: Motivation Tip */}
+            <div className="text-center space-y-2">
+              <div className="flex items-center justify-center gap-2 text-2xl font-semibold text-gray-800">
+                <span className="text-3xl">💡</span>
+                Personal Motivation Tip
+              </div>
+              <div className="w-28 h-1 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full mx-auto"></div>
+            </div>
+
             {/* Motivation Tip */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Lightbulb className="h-5 w-5" />
-                  Personal Motivation Tip
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border-l-4 border-blue-500">
-                  <p className="text-gray-700 italic">{mealPlan.motivationTip}</p>
+              <CardContent className="pt-6">
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border-l-4 border-blue-500">
+                  <div className="flex items-start gap-3">
+                    <Lightbulb className="h-6 w-6 text-blue-600 mt-1 flex-shrink-0" />
+                    <p className="text-gray-700 italic leading-relaxed">{mealPlan.motivationTip}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Call to Action */}
+            <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
+              <CardContent className="pt-6">
+                <div className="text-center space-y-4">
+                  <div className="text-2xl font-bold text-gray-800 flex items-center justify-center gap-2">
+                    <span className="text-3xl">🏁</span>
+                    Ready to start your journey?
+                  </div>
+                  <p className="text-gray-600 mb-6">
+                    Take your meal planning to the next level with AI-powered food analysis
+                  </p>
+                  <Link to="/">
+                    <Button size="lg" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-3">
+                      <Camera className="h-5 w-5 mr-2" />
+                      Upload Next Meal for AI Analysis
+                    </Button>
+                  </Link>
                 </div>
               </CardContent>
             </Card>
